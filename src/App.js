@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { sensors as initialSensors } from './mock/sensors';
 import { generateRandomTemp, checkStatus, generateHistory } from './utils/temperatureUtils';
+import { generateCSV, downloadCSV } from './utils/exportUtils';
 import SensorCard from './components/SensorCard';
 import AlertBanner from './components/AlertBanner';
 import SensorConfigModal from './components/SensorConfigModal';
@@ -76,6 +77,12 @@ const App = () => {
     setEditingSensor(null);
   };
 
+  const handleExportData = () => {
+    const csvData = generateCSV(sensors);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCSV(csvData, `temperaturas_farmacia_${dateStr}.csv`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
       <header className="mb-8">
@@ -97,7 +104,10 @@ const App = () => {
 
       <div className="mt-8 bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Exportar Datos</h2>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors">
+        <button 
+          onClick={handleExportData}
+          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+        >
           Descargar Histórico CSV
         </button>
       </div>
