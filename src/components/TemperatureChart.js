@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { linearRegression } from '../utils/regressionUtils';
 
 const TemperatureChart = ({ history, minTemp, maxTemp }) => {
   const svgRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [regression, setRegression] = useState(null);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -18,7 +20,20 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  if (!history.length || dimensions.width === 0) return <div className="h-48 bg-gray-50 rounded-lg" />;
+  useEffect(() => {
+    if (history.length > 1) {
+      const X = history.map((_, i) => i);
+      const Y = history.map(item => item.temp);
+      const result = linearRegression(X, Y);
+      setRegression(result);
+    } else {
+      setRegression(null);
+    }
+  }, [history]);
+
+  if (!history.length || dimensions.width === 0) {
+    return <div className="h-48 bg-gray-50 rounded-lg" />;
+  }
 
   const margin = { top: 20, right: 20, bottom: 30, left: 40 };
   const innerWidth = dimensions.width - margin.left - margin.right;
@@ -51,8 +66,6 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
     }
   };
 
-  const handleMouseLeave = () => setTooltip(null);
-
   const statusColor = (status) => {
     switch(status) {
       case 'critical': return '#ef4444';
@@ -68,10 +81,10 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
         width="100%"
         height="100%"
         onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={() => setTooltip(null)}
         className="rounded-lg"
       >
-        {/* Eje X */}
+        {/* Ejes */}
         <line
           x1={margin.left}
           y1={margin.top + innerHeight}
@@ -80,8 +93,6 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
           stroke="#e5e7eb"
           strokeWidth="1"
         />
-        
-        {/* Eje Y */}
         <line
           x1={margin.left}
           y1={margin.top}
@@ -91,7 +102,7 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
           strokeWidth="1"
         />
         
-        {/* Línea de temperatura mínima */}
+        {/* Límites de temperatura */}
         <line
           x1={margin.left}
           y1={yScale(minTemp)}
@@ -101,8 +112,6 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
           strokeWidth="1"
           strokeDasharray="5,5"
         />
-        
-        {/* Línea de temperatura máxima */}
         <line
           x1={margin.left}
           y1={yScale(maxTemp)}
@@ -113,7 +122,20 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
           strokeDasharray="5,5"
         />
         
-        {/* Gráfico de línea */}
+        {/* Línea de regresión */}
+        {regression && (
+          <line
+            x1={margin.left}
+            y1={yScale(regression.m * 0 + regression.b)}
+            x2={margin.left + innerWidth}
+            y2={yScale(regression.m * (history.length - 1) + regression.b)}
+            stroke="#3b82f6"
+            strokeWidth="2"
+            strokeDasharray="3,3"
+          />
+        )}
+        
+        {/* Datos */}
         <polyline
           fill="none"
           stroke="#10b981"
@@ -121,7 +143,6 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
           points={history.map((item, i) => `${xScale(i)},${yScale(item.temp)}`).join(' ')}
         />
         
-        {/* Puntos de datos */}
         {history.map((item, i) => (
           <circle
             key={i}
@@ -157,8 +178,8 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
             <rect
               x={tooltip.x + 10}
               y={tooltip.y - 25}
-              width="120"
-              height="40"
+              width="140"
+              height="60"
               rx="4"
               fill="white"
               stroke="#e5e7eb"
@@ -179,9 +200,31 @@ const TemperatureChart = ({ history, minTemp, maxTemp }) => {
               fontSize="10"
               fontWeight="bold"
             >
-              {tooltip.temp}°C ({tooltip.status})
+              Temp: {tooltip.temp}°C ({tooltip.status})
             </text>
+            {regression && (
+              <text
+                x={tooltip.x + 15}
+                y={tooltip.y + 20}
+                fill="#3b82f6"
+                fontSize="10"
+              >
+                Tendencia: y = {regression.m.toFixed(2)}x + {regression.b.toFixed(2)}
+              </text>
+            )}
           </g>
+        )}
+        
+        {/* Leyenda de regresión */}
+        {regression && (
+          <text
+            x={margin.left + 10}
+            y={margin.top + 15}
+            fill="#3b82f6"
+            fontSize="10"
+          >
+            R² = {regression.r2.toFixed(2)}
+          </text>
         )}
       </svg>
     </div>
